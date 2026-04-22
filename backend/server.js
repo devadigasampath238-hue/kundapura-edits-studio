@@ -9,7 +9,9 @@ const fs        = require('fs');
 const connectDB = require('./config/db');
 
 // ── Connect to MongoDB ────────────────────────
-connectDB();
+connectDB().catch(err => {
+  console.error("MongoDB connection failed:", err.message);
+});
 
 const app = express();
 
