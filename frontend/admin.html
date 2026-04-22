@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel — KE Studio</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body class="admin-body">
+
+  <!-- ══ LOGIN SCREEN ══════════════════════════ -->
+  <div class="admin-login-screen" id="loginSection">
+    <div class="login-card">
+      <div class="login-logo">
+        <span class="logo-icon">▶</span>
+        <span class="logo-text">KE<span class="logo-accent">Studio</span></span>
+      </div>
+      <h2>Admin Panel</h2>
+      <p>Swagata! Sign in to manage your studio.</p>
+
+      <form onsubmit="adminLogin(event)">
+        <div class="form-group">
+          <label for="a-username">Username</label>
+          <input type="text" id="a-username" placeholder="admin" required autocomplete="username" />
+        </div>
+        <div class="form-group">
+          <label for="a-password">Password</label>
+          <input type="password" id="a-password" placeholder="••••••••" required autocomplete="current-password" />
+        </div>
+        <div class="login-error" id="loginError"></div>
+        <button type="submit" class="btn btn-primary full-btn" style="margin-top:8px">
+          <span class="btn-icon">🔑</span> Login
+        </button>
+      </form>
+
+      <a href="/" class="back-to-site">← Back to Website</a>
+    </div>
+  </div>
+
+  <!-- ══ DASHBOARD ═════════════════════════════ -->
+  <div class="admin-dashboard" id="dashboardSection" style="display:none">
+
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-icon">▶</span>
+        <span class="logo-text">KE<span class="logo-accent">Studio</span></span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="admin-tab-btn active" data-tab="upload"   onclick="switchTab('upload')">
+          <span>⬆</span> Upload Video
+        </button>
+        <button class="admin-tab-btn" data-tab="videos"   onclick="switchTab('videos')">
+          <span>🎬</span> Manage Videos
+        </button>
+        <button class="admin-tab-btn" data-tab="bookings" onclick="switchTab('bookings')">
+          <span>📋</span> Bookings
+        </button>
+        <button class="admin-tab-btn" data-tab="reviews"  onclick="switchTab('reviews')">
+          <span>⭐</span> Reviews
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="/" target="_blank" class="sidebar-link">🌐 View Website</a>
+        <button class="sidebar-logout" onclick="adminLogout()">🚪 Logout</button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+
+      <!-- Stats Bar -->
+      <div class="admin-stats-bar">
+        <div class="admin-stat-card">
+          <span class="astat-num" id="stat-videos">—</span>
+          <span class="astat-label">Videos</span>
+        </div>
+        <div class="admin-stat-card">
+          <span class="astat-num" id="stat-bookings">—</span>
+          <span class="astat-label">Bookings</span>
+        </div>
+        <div class="admin-stat-card highlight">
+          <span class="astat-num" id="stat-new">—</span>
+          <span class="astat-label">New Leads</span>
+        </div>
+        <div class="admin-stat-card">
+          <span class="astat-num" id="stat-reviews">—</span>
+          <span class="astat-label">Reviews</span>
+        </div>
+      </div>
+
+      <!-- ── TAB: Upload Video ── -->
+      <div class="admin-tab-content active" id="tab-upload">
+        <div class="tab-header">
+          <h2>Upload New Video</h2>
+          <p>Add a new video to your portfolio. Channagide! 🎬</p>
+        </div>
+
+        <div class="admin-card">
+          <form onsubmit="uploadVideo(event)" enctype="multipart/form-data">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="v-title">Video Title *</label>
+                <input type="text" id="v-title" name="title" placeholder="Eg: Rohan & Priya Wedding Highlight" required maxlength="120" />
+              </div>
+              <div class="form-group">
+                <label for="v-category">Category *</label>
+                <select id="v-category" name="category" required>
+                  <option value="" disabled selected>Select category</option>
+                  <option value="wedding">💍 Wedding Editing</option>
+                  <option value="reels">📱 Instagram Reels</option>
+                  <option value="youtube">🎥 YouTube Editing</option>
+                  <option value="ads">📣 Business Ads</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group full">
+              <label for="v-description">Description (Optional)</label>
+              <textarea id="v-description" name="description" rows="2" placeholder="Brief description of the video..." maxlength="500"></textarea>
+            </div>
+
+            <div class="upload-divider"><span>Upload Video File</span></div>
+
+            <div class="file-upload-wrap">
+              <label class="file-upload-label" for="videoFile">
+                <span class="file-upload-icon">📁</span>
+                <span class="file-upload-text">Click to choose video file</span>
+                <span class="file-upload-hint">MP4, WebM, MOV, AVI — Max 200MB</span>
+                <span id="fileNameDisplay" class="file-name-display">No file chosen</span>
+              </label>
+              <input type="file" id="videoFile" name="videoFile" accept="video/*" style="display:none" />
+            </div>
+
+            <div class="upload-divider"><span>— OR — Paste Video URL</span></div>
+
+            <div class="form-group full">
+              <label for="v-url">Video URL (YouTube embed, direct link, etc.)</label>
+              <input type="url" id="v-url" name="videoUrl" placeholder="https://example.com/video.mp4" />
+            </div>
+
+            <div class="upload-progress-wrap" id="uploadProgress" style="display:none">
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="progressBar"></div>
+              </div>
+              <span class="progress-label">Uploading…</span>
+            </div>
+
+            <button type="submit" class="btn btn-primary full-btn" style="margin-top:8px">
+              <span class="btn-icon">⬆</span> Upload Video
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- ── TAB: Manage Videos ── -->
+      <div class="admin-tab-content" id="tab-videos">
+        <div class="tab-header">
+          <h2>Manage Videos</h2>
+          <p>Edit, delete, or toggle visibility of portfolio videos.</p>
+        </div>
+        <div class="admin-card" id="adminVideosList">
+          <div class="admin-loading">Loading videos…</div>
+        </div>
+      </div>
+
+      <!-- ── TAB: Bookings ── -->
+      <div class="admin-tab-content" id="tab-bookings">
+        <div class="tab-header">
+          <h2>Booking Requests</h2>
+          <p>Manage expressing sessions and counsellor applications.</p>
+        </div>
+        <div class="booking-filters">
+          <button class="booking-filter-btn active" data-bfilter="all"        onclick="filterBookings('all')">All</button>
+          <button class="booking-filter-btn"         data-bfilter="session"   onclick="filterBookings('session')">🎬 Sessions</button>
+          <button class="booking-filter-btn"         data-bfilter="counsellor" onclick="filterBookings('counsellor')">🧑‍💼 Counsellors</button>
+        </div>
+        <div class="admin-card" id="bookingsList">
+          <div class="admin-loading">Loading bookings…</div>
+        </div>
+      </div>
+
+      <!-- ── TAB: Reviews ── -->
+      <div class="admin-tab-content" id="tab-reviews">
+        <div class="tab-header">
+          <h2>Manage Reviews</h2>
+          <p>Approve, hide, or delete customer reviews.</p>
+        </div>
+        <div class="admin-card" id="adminReviewsList">
+          <div class="admin-loading">Loading reviews…</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="js/toast.js"></script>
+  <script src="js/admin.js"></script>
+  <
+
+
+
+</body>
+</html>
