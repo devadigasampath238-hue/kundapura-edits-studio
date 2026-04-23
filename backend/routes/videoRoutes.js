@@ -1,43 +1,33 @@
-// backend/routes/videoRoutes.js
-
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const Video = require('../models/Video');
 const { protect } = require('../middleware/authMiddleware');
 
-// ── Multer Storage Config ──────────────────────
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../uploads');
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    // Sanitize filename: timestamp + original name (no spaces)
-    const safeName = file.originalname.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
-    cb(null, `${Date.now()}-${safeName}`);
-  },
-});
-
-const fileFilter = (req, file, cb) => {
-  const allowed = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo'];
-  if (allowed.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only video files are allowed (mp4, webm, ogg, mov, avi)'), false);
-  }
-};
-
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: {
-    fileSize: (parseInt(process.env.MAX_FILE_SIZE_MB) || 200) * 1024 * 1024,
-  },
-});
+// ── Storage Config (Cloudinary in production, local in development) ──
+let upload;
+if (process.env.CLOUDINARY_CLOUD_NAME) {
+  const cloudinaryConfig = require('../config/cloudinary');
+  upload = cloudinaryConfig.upload;
+} else {
+  const multer = require('multer');
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      const uploadDir = path.join(__dirname, '../uploads');
+      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+      cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+      const safeName = file.originalname.replace(/\s+/g, '_');
+      cb(null, `${Date.now()}-${safeName}`);
+    },
+  });
+  upload = multer({
+    storage,
+    limits: { fileSize: 200 * 1024 * 1024 },
+  });
+}
 
 // ──────────────────────────────────────────────
 //  GET /api/videos
@@ -74,7 +64,7 @@ router.get('/', async (req, res) => {
 
 // ──────────────────────────────────────────────
 //  GET /api/videos/:id
-//  Public — get single video (increments view count)
+//  Public — get single video
 // ──────────────────────────────────────────────
 router.get('/:id', async (req, res) => {
   try {
@@ -83,7 +73,9 @@ router.get('/:id', async (req, res) => {
       { $inc: { views: 1 } },
       { new: true }
     );
-    if (!video) return res.status(404).json({ success: false, message: 'Video not found' });
+    if (!video) {
+      return res.status(404).json({ success: false, message: 'Video not found' });
+    }
     res.json({ success: true, video });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -99,20 +91,31 @@ router.post('/', protect, upload.single('videoFile'), async (req, res) => {
     const { title, category, description, videoUrl: manualUrl } = req.body;
 
     if (!title || !category) {
-      return res.status(400).json({ success: false, message: 'Title and category are required' });
+      return res.status(400).json({
+        success: false,
+        message: 'Title and category are required',
+      });
     }
 
-    // Determine video URL: uploaded file OR manual URL
+    // ✅ FIXED: supports both Cloudinary (req.file.path) and local (req.file.filename)
     let videoUrl = manualUrl || '';
     if (req.file) {
-      videoUrl = `/uploads/${req.file.filename}`;
+      videoUrl = req.file.path || `/uploads/${req.file.filename}`;
     }
 
     if (!videoUrl) {
-      return res.status(400).json({ success: false, message: 'Please upload a video file or provide a URL' });
+      return res.status(400).json({
+        success: false,
+        message: 'Please upload a video file or provide a URL',
+      });
     }
 
-    const video = await Video.create({ title, category, videoUrl, description: description || '' });
+    const video = await Video.create({
+      title,
+      category,
+      videoUrl,
+      description: description || '',
+    });
 
     res.status(201).json({
       success: true,
@@ -121,10 +124,6 @@ router.post('/', protect, upload.single('videoFile'), async (req, res) => {
     });
   } catch (error) {
     console.error('Upload error:', error);
-    // Remove uploaded file on error
-    if (req.file) {
-      fs.unlink(req.file.path, () => {});
-    }
     res.status(500).json({ success: false, message: error.message || 'Upload failed' });
   }
 });
@@ -143,7 +142,9 @@ router.put('/:id', protect, async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    if (!video) return res.status(404).json({ success: false, message: 'Video not found' });
+    if (!video) {
+      return res.status(404).json({ success: false, message: 'Video not found' });
+    }
 
     res.json({ success: true, message: 'Video updated!', video });
   } catch (error) {
@@ -158,15 +159,30 @@ router.put('/:id', protect, async (req, res) => {
 router.delete('/:id', protect, async (req, res) => {
   try {
     const video = await Video.findById(req.params.id);
-    if (!video) return res.status(404).json({ success: false, message: 'Video not found' });
+    if (!video) {
+      return res.status(404).json({ success: false, message: 'Video not found' });
+    }
 
-    // Delete physical file if it's a local upload
+    // Delete local file if exists
     if (video.videoUrl && video.videoUrl.startsWith('/uploads/')) {
       const filePath = path.join(__dirname, '..', video.videoUrl);
       if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
     }
 
-    // Also delete associated reviews
+    // Delete from Cloudinary if it's a Cloudinary URL
+    if (video.videoUrl && video.videoUrl.includes('cloudinary.com')) {
+      try {
+        const { cloudinary } = require('../config/cloudinary');
+        const publicId = video.videoUrl.split('/').slice(-1)[0].split('.')[0];
+        await cloudinary.uploader.destroy(`kundapura-edits/${publicId}`, {
+          resource_type: 'video',
+        });
+      } catch (cloudErr) {
+        console.log('Cloudinary delete error (non-fatal):', cloudErr.message);
+      }
+    }
+
+    // Delete associated reviews
     const Review = require('../models/Review');
     await Review.deleteMany({ videoId: video._id });
 
