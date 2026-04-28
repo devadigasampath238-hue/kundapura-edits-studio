@@ -24,8 +24,8 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '2000mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2000mb' }));
 
 // ── Static Files ──────────────────────────────
 const frontendPath = path.join(__dirname, '../frontend');
@@ -86,7 +86,7 @@ app.use((err, req, res, next) => {
   if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(413).json({
       success: false,
-      message: `File too large. Max size: ${process.env.MAX_FILE_SIZE_MB || 200}MB`,
+      message: `File too large. Max size: ${process.env.MAX_FILE_SIZE_MB ||2000}MB`,
     });
   }
 
