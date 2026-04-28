@@ -126,64 +126,97 @@ function setStat(id, val) {
 // ══════════════════════════════════════════════
 //  UPLOAD VIDEO
 // ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+//  UPLOAD VIDEO (Cloudinary Direct Upload)
+// ══════════════════════════════════════════════
 async function uploadVideo(e) {
   e.preventDefault();
+
   const form = e.target;
   const btn  = form.querySelector('button[type="submit"]');
   const progressWrap = document.getElementById('uploadProgress');
   const progressBar  = document.getElementById('progressBar');
 
-  btn.disabled    = true;
+  const fileInput = document.getElementById('videoFile');
+  const file = fileInput.files[0];
+
+  const title = form.querySelector('[name="title"]').value;
+  const category = form.querySelector('[name="category"]').value;
+  const description = form.querySelector('[name="description"]')?.value || '';
+
+  if (!file) {
+    return Toast.warning("Please select a video file");
+  }
+
+  btn.disabled = true;
   btn.textContent = 'Uploading…';
 
-  const formData = new FormData(form);
   progressWrap.style.display = 'block';
-  progressBar.style.width    = '10%';
+  progressBar.style.width = '5%';
 
   try {
-    // Simulate progress
-    let prog = 10;
-    const interval = setInterval(() => {
-      prog = Math.min(prog + 5, 85);
-      progressBar.style.width = `${prog}%`;
-    }, 300);
+    // 🔥 STEP 1: Upload to Cloudinary (DIRECT)
+    const cloudForm = new FormData();
+    cloudForm.append("file", file);
+    cloudForm.append("upload_preset", "kundapura_upload"); // ⚠️ change this
+    cloudForm.append("resource_type", "video");
 
+    const cloudRes = await fetch(
+      "https://api.cloudinary.com/v1_1/dkghxpwy8/video/upload", // ⚠️ change this
+      {
+        method: "POST",
+        body: cloudForm,
+      }
+    );
+
+    const cloudData = await cloudRes.json();
+    if (!cloudRes.ok) {
+  console.error("Cloudinary error:", cloudData);
+  throw new Error(cloudData.error?.message || "Upload failed");
+}
+
+    
+
+    progressBar.style.width = '70%';
+
+    // 🔥 STEP 2: Send URL to backend
     const res = await fetch(`${API}/videos`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${adminToken}` }, // No Content-Type — let browser set multipart boundary
-      body: formData,
+      headers: authHeader(),
+      body: JSON.stringify({
+        title,
+        category,
+        description,
+        videoUrl: cloudData.secure_url,
+      }),
     });
 
-    clearInterval(interval);
-    progressBar.style.width = '100%';
     const data = await res.json();
 
+    progressBar.style.width = '100%';
+
     if (data.success) {
-      Toast.success(data.message);
+      Toast.success("Video uploaded successfully 🎬");
       form.reset();
       document.getElementById('fileNameDisplay').textContent = 'No file chosen';
       switchTab('videos');
     } else {
       Toast.error(data.message || 'Upload failed');
     }
-  } catch (_) {
-    Toast.error('Upload failed. Check your connection.');
+
+  } catch (err) {
+    console.error(err);
+    Toast.error("Upload failed. Check connection.");
   } finally {
-    btn.disabled    = false;
+    btn.disabled = false;
     btn.textContent = 'Upload Video';
-    setTimeout(() => { progressWrap.style.display = 'none'; progressBar.style.width = '0'; }, 1500);
+
+    setTimeout(() => {
+      progressWrap.style.display = 'none';
+      progressBar.style.width = '0';
+    }, 1500);
   }
 }
-
-window.uploadVideo = uploadVideo;
-
-// File input display
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('videoFile')?.addEventListener('change', function () {
-    const el = document.getElementById('fileNameDisplay');
-    if (el) el.textContent = this.files[0]?.name || 'No file chosen';
-  });
-});
 
 // ══════════════════════════════════════════════
 //  MANAGE VIDEOS
