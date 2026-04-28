@@ -146,7 +146,7 @@ function setStat(id, val) {
     console.log("Uploading to Cloudinary...");
 
     const res = await fetch(
-      "https://api.cloudinary.com/v1_1/dkgzhxpwy8/video/upload",
+      "https://api.cloudinary.com/v1_1/dkghxpwy8/video/upload",
       {
         method: "POST",
         body: formData,
